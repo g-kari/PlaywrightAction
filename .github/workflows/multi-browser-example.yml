@@ -1,0 +1,63 @@
+name: Multi-Browser Monkey Test
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  monkey-test:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+        test-site:
+          - { url: 'https://playwright.dev', name: 'playwright' }
+          - { url: 'https://github.com', name: 'github' }
+      fail-fast: false
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Monkey Test - ${{ matrix.browser }} on ${{ matrix.test-site.name }}
+        uses: ./
+        with:
+          url: ${{ matrix.test-site.url }}
+          test-duration: '5'
+          browser: ${{ matrix.browser }}
+          max-actions: '100'
+          action-delay: '1500'
+          screenshot-path: './screenshots/${{ matrix.browser }}-${{ matrix.test-site.name }}'
+          
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ matrix.browser }}-${{ matrix.test-site.name }}
+          path: ./screenshots/${{ matrix.browser }}-${{ matrix.test-site.name }}/
+          retention-days: 14
+          
+      - name: Comment Test Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testResult = '${{ steps.monkey-test.outputs.test-result }}';
+            const errorsFound = '${{ steps.monkey-test.outputs.errors-found }}';
+            const screenshotCount = '${{ steps.monkey-test.outputs.screenshot-count }}';
+            
+            const comment = `## 🐒 Monkey Test Results (${{ matrix.browser }} on ${{ matrix.test-site.name }})
+            
+            **Result**: ${testResult}
+            **Errors Found**: ${errorsFound}
+            **Screenshots**: ${screenshotCount}
+            
+            ${errorsFound > 0 ? '⚠️ Some issues were detected during testing.' : '✅ No issues detected.'}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
