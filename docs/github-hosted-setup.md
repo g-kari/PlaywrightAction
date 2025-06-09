@@ -128,6 +128,55 @@ jobs:
           path: ./screenshots/${{ matrix.os }}-${{ matrix.browser }}/
 ```
 
+### 手動実行（workflow_dispatch）
+
+ワークフローを手動で実行する際に、テスト対象URLやパラメータを動的に指定できます：
+
+```yaml
+name: Manual GitHub-Hosted Test
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://playwright.dev'
+        type: string
+      browser:
+        description: 'Browser to use'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+
+jobs:
+  manual-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ github.event.inputs.browser || 'chromium' }}
+        
+      - name: Run Manual Test
+        uses: g-kari/PlaywrightAction@v1
+        with:
+          url: ${{ github.event.inputs.url || 'https://playwright.dev' }}
+          browser: ${{ github.event.inputs.browser || 'chromium' }}
+          test-duration: '3'
+          max-actions: '50'
+```
+
+この設定により、GitHub Actionsの「Run workflow」ボタンから実行時にURLとブラウザを選択できます。
+
 ## プラットフォーム別の注意事項
 
 ### Ubuntu (ubuntu-latest)

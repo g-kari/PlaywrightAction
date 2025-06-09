@@ -4,6 +4,22 @@ on:
   schedule:
     - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target URL to test (overrides matrix URLs)'
+        required: false
+        default: ''
+        type: string
+      test-duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '5'
+        type: string
+      max-actions:
+        description: 'Maximum number of actions'
+        required: false
+        default: '100'
+        type: string
 
 jobs:
   monkey-test:
@@ -23,10 +39,10 @@ jobs:
       - name: Run Monkey Test - ${{ matrix.browser }} on ${{ matrix.test-site.name }}
         uses: ./
         with:
-          url: ${{ matrix.test-site.url }}
-          test-duration: '5'
+          url: ${{ github.event.inputs.url || matrix.test-site.url }}
+          test-duration: ${{ github.event.inputs.test-duration || '5' }}
           browser: ${{ matrix.browser }}
-          max-actions: '100'
+          max-actions: ${{ github.event.inputs.max-actions || '100' }}
           action-delay: '1500'
           screenshot-path: './screenshots/${{ matrix.browser }}-${{ matrix.test-site.name }}'
           
