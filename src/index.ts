@@ -320,8 +320,15 @@ async function run(): Promise<void> {
     core.info(`Detected runner type: ${runnerType}`);
 
     // Get inputs
+    const url = core.getInput('url', { required: true });
+    
+    // Basic URL validation
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      throw new Error(`Invalid URL format: ${url}. URL must start with http:// or https://`);
+    }
+    
     const config: TestConfig = {
-      url: core.getInput('url', { required: true }),
+      url: url,
       testDuration: parseInt(core.getInput('test-duration') || '5'),
       browser: core.getInput('browser') || 'chromium',
       mcpServer: core.getInput('mcp-server') || '',
