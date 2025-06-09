@@ -52,11 +52,22 @@ if ! grep -q "モンキーテスト" README.md; then
     exit 1
 fi
 
-echo "✅ README.md has Japanese documentation"
+# Check if README has GitHub hosted content
+if ! grep -q "GitHub.*ホスト" README.md; then
+    echo "❌ README.md missing GitHub-hosted content"
+    exit 1
+fi
+
+echo "✅ README.md has GitHub-hosted documentation"
 
 # Check if example workflows exist
 if [ ! -f ".github/workflows/basic-example.yml" ]; then
     echo "❌ Basic example workflow not found"
+    exit 1
+fi
+
+if [ ! -f ".github/workflows/github-hosted-example.yml" ]; then
+    echo "❌ GitHub-hosted example workflow not found"
     exit 1
 fi
 
@@ -65,6 +76,11 @@ echo "✅ Example workflows found"
 # Check if documentation exists
 if [ ! -f "docs/self-hosted-setup.md" ]; then
     echo "❌ Self-hosted setup documentation not found"
+    exit 1
+fi
+
+if [ ! -f "docs/github-hosted-setup.md" ]; then
+    echo "❌ GitHub-hosted setup documentation not found"
     exit 1
 fi
 

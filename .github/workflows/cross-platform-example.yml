@@ -1,0 +1,75 @@
+name: Multi-Platform Runner Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * *'  # Daily at noon
+
+jobs:
+  test-github-hosted:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox]
+        exclude:
+          # WebKit on Windows has known issues
+          - os: windows-latest
+            browser: webkit
+      fail-fast: false
+      
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+        
+      - name: Run Monkey Test - ${{ matrix.browser }} on ${{ matrix.os }}
+        uses: ./
+        with:
+          url: 'https://example.com'
+          test-duration: '1'
+          browser: ${{ matrix.browser }}
+          max-actions: '20'
+          action-delay: '3000'
+          screenshot-path: './screenshots/${{ matrix.os }}-${{ matrix.browser }}'
+          
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ matrix.os }}-${{ matrix.browser }}
+          path: ./screenshots/${{ matrix.os }}-${{ matrix.browser }}/
+          retention-days: 7
+
+  test-self-hosted:
+    runs-on: self-hosted
+    if: false  # Disabled by default since self-hosted runners may not be available
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Monkey Test on Self-Hosted
+        uses: ./
+        with:
+          url: 'https://playwright.dev'
+          test-duration: '3'
+          browser: 'chromium'
+          max-actions: '50'
+          action-delay: '2000'
+          
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-self-hosted
+          path: ./screenshots/
+          retention-days: 7
