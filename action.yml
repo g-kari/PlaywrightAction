@@ -1,0 +1,47 @@
+name: 'Playwright MCP Monkey Test'
+description: 'Run Playwright monkey tests with MCP integration and screenshot sharing'
+author: 'g-kari'
+branding:
+  icon: 'play-circle'
+  color: 'green'
+
+inputs:
+  url:
+    description: 'Target URL to test'
+    required: true
+  test-duration:
+    description: 'Duration of monkey test in minutes'
+    required: false
+    default: '5'
+  browser:
+    description: 'Browser to use (chromium, firefox, webkit)'
+    required: false
+    default: 'chromium'
+  mcp-server:
+    description: 'MCP server endpoint'
+    required: false
+    default: ''
+  screenshot-path:
+    description: 'Path to save screenshots'
+    required: false
+    default: './screenshots'
+  max-actions:
+    description: 'Maximum number of actions to perform'
+    required: false
+    default: '100'
+  action-delay:
+    description: 'Delay between actions in milliseconds'
+    required: false
+    default: '1000'
+
+outputs:
+  screenshot-count:
+    description: 'Number of screenshots captured'
+  test-result:
+    description: 'Test result summary'
+  errors-found:
+    description: 'Number of errors found during testing'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
