@@ -8,14 +8,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  monkey-test:
+  # Self-hosted runner example
+  monkey-test-self-hosted:
     runs-on: self-hosted
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Run Playwright Monkey Test
+      - name: Run Playwright Monkey Test (Self-Hosted)
         uses: ./
         with:
           url: 'https://playwright.dev'
@@ -28,6 +29,39 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: monkey-test-screenshots
+          name: monkey-test-screenshots-self-hosted
+          path: ./screenshots/
+          retention-days: 7
+
+  # GitHub-hosted runner example
+  monkey-test-github-hosted:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        
+      - name: Run Playwright Monkey Test (GitHub-Hosted)
+        uses: ./
+        with:
+          url: 'https://playwright.dev'
+          test-duration: '2'
+          browser: 'chromium'
+          max-actions: '30'
+          action-delay: '2000'
+          
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: monkey-test-screenshots-github-hosted
           path: ./screenshots/
           retention-days: 7

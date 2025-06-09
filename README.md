@@ -1,10 +1,10 @@
 # PlaywrightAction
 
-セルフホスト環境で動作するPlaywright MCP モンキーテスト & スクリーンショット共有 GitHub Action
+セルフホスト・GitHub ホスト両対応 Playwright MCP モンキーテスト & スクリーンショット共有 GitHub Action
 
 ## 概要
 
-このGitHub Actionは、セルフホストランナー環境においてPlaywrightを活用したモンキーテストを実行し、MCP（Model Context Protocol）によるAI支援テスト分析とスクリーンショット共有機能を提供します。
+このGitHub Actionは、セルフホストランナー・GitHub提供ホストランナーの両方でPlaywrightを活用したモンキーテストを実行し、MCP（Model Context Protocol）によるAI支援テスト分析とスクリーンショット共有機能を提供します。
 
 ## 主な機能
 
@@ -13,13 +13,44 @@
 - 🤖 **MCP統合**: AI支援によるテスト分析（開発中）
 - 🌐 **マルチブラウザ対応**: Chromium、Firefox、WebKitをサポート
 - 🏠 **セルフホスト対応**: セルフホストランナーでの動作最適化
+- ☁️ **GitHub ホスト対応**: GitHub提供ランナーでの実行をサポート
+- 🔄 **自動ランナー検出**: 実行環境に応じて最適な設定を自動適用
 
 ## 使用方法
 
-### 基本的な使用例
+### GitHub ホストランナーでの使用例
 
 ```yaml
-name: Playwright Monkey Test
+name: Playwright Monkey Test (GitHub-Hosted)
+on: [push, pull_request]
+
+jobs:
+  monkey-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run Playwright Monkey Test
+        uses: g-kari/PlaywrightAction@v1
+        with:
+          url: 'https://example.com'
+          test-duration: '3'
+          browser: 'chromium'
+          max-actions: '50'
+```
+
+### セルフホストランナーでの使用例
+
+```yaml
+name: Playwright Monkey Test (Self-Hosted)
 on: [push, pull_request]
 
 jobs:
@@ -37,16 +68,54 @@ jobs:
           max-actions: '100'
 ```
 
-### 高度な設定例
+### 高度な設定例（マルチプラットフォーム）
 
 ```yaml
-name: Advanced Monkey Test
+name: Cross-Platform Monkey Test
 on: 
   schedule:
     - cron: '0 2 * * *'  # 毎日午前2時に自動実行
 
 jobs:
-  monkey-test:
+  # GitHub ホストランナーでのテスト
+  test-github-hosted:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        browser: [chromium, firefox]
+        
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: モンキーテスト実行 - ${{ matrix.browser }} on ${{ matrix.os }}
+        uses: g-kari/PlaywrightAction@v1
+        with:
+          url: ${{ secrets.TEST_URL }}
+          test-duration: '5'
+          browser: ${{ matrix.browser }}
+          max-actions: '100'
+          action-delay: '1000'
+          screenshot-path: './test-screenshots/${{ matrix.os }}-${{ matrix.browser }}'
+          
+      - name: スクリーンショットのアップロード
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ matrix.os }}-${{ matrix.browser }}
+          path: ./test-screenshots/${{ matrix.os }}-${{ matrix.browser }}
+          retention-days: 30
+
+  # セルフホストランナーでのテスト
+  test-self-hosted:
     runs-on: self-hosted
     strategy:
       matrix:
@@ -65,14 +134,6 @@ jobs:
           action-delay: '500'
           screenshot-path: './test-screenshots/${{ matrix.browser }}'
           mcp-server: ${{ secrets.MCP_SERVER_URL }}
-          
-      - name: スクリーンショットのアップロード
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: screenshots-${{ matrix.browser }}
-          path: ./test-screenshots/${{ matrix.browser }}
-          retention-days: 30
 ```
 
 ## 入力パラメータ
@@ -94,6 +155,72 @@ jobs:
 | `screenshot-count` | 取得したスクリーンショットの数 |
 | `test-result` | テスト結果のサマリー |
 | `errors-found` | 発見されたエラーの数 |
+
+## ランナータイプと推奨設定
+
+このアクションは実行環境を自動検出し、最適な設定を適用します：
+
+### GitHub ホストランナー
+- **対応OS**: Ubuntu, Windows, macOS
+- **ブラウザ**: Chromium, Firefox (WebKitはmacOSのみ推奨)
+- **セットアップ**: Playwrightの事前インストールが必要
+- **利点**: 設定不要、スケーラブル、コスト効率
+- **制限**: 実行時間制限、一部システム機能への制限
+
+### セルフホストランナー
+- **対応OS**: 主にLinux (Ubuntu推奨)
+- **ブラウザ**: Chromium, Firefox, WebKit (全て対応)
+- **セットアップ**: 事前環境構築が必要
+- **利点**: 完全制御、長時間実行可能、カスタム環境
+- **制限**: 管理コスト、スケーラビリティ
+
+## GitHub ホストランナーでの使用準備
+
+GitHub ホストランナーを使用する場合、以下のセットアップが必要です：
+
+### 基本セットアップ
+
+```yaml
+steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+      
+  - name: Install Playwright browsers
+    run: npx playwright install --with-deps chromium
+```
+
+### マルチブラウザセットアップ
+
+```yaml
+strategy:
+  matrix:
+    browser: [chromium, firefox]
+
+steps:
+  - name: Setup Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: '20'
+      
+  - name: Install Playwright browsers
+    run: npx playwright install --with-deps ${{ matrix.browser }}
+```
+
+### Windows/macOS の場合
+
+```yaml
+# Windows
+- name: Install Playwright browsers (Windows)
+  run: npx playwright install --with-deps chromium
+  if: runner.os == 'Windows'
+
+# macOS  
+- name: Install Playwright browsers (macOS)
+  run: npx playwright install --with-deps chromium webkit
+  if: runner.os == 'macOS'
+```
 
 ## セルフホストランナーのセットアップ
 
@@ -233,4 +360,4 @@ MIT License
 
 ---
 
-**ご注意**: このアクションはセルフホストランナーでの使用を前提として設計されています。GitHub提供のホストランナーでは一部機能が制限される場合があります。
+**📋 ランナー対応状況**: このアクションはセルフホストランナー・GitHub提供ホストランナーの両方で動作します。実行環境は自動検出され、最適な設定が適用されます。GitHub ホストランナーではPlaywrightの事前インストールが必要です。

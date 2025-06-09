@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import { chromium, firefox, webkit, Browser, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 interface TestConfig {
   url: string;
@@ -11,6 +12,7 @@ interface TestConfig {
   screenshotPath: string;
   maxActions: number;
   actionDelay: number;
+  runnerType: 'self-hosted' | 'github-hosted';
 }
 
 interface TestResult {
@@ -34,23 +36,26 @@ class MonkeyTester {
   }
 
   async initialize(): Promise<void> {
-    core.info('Initializing browser...');
+    core.info(`Initializing browser for ${this.config.runnerType} runner...`);
     
     // Create screenshot directory
     if (!fs.existsSync(this.config.screenshotPath)) {
       fs.mkdirSync(this.config.screenshotPath, { recursive: true });
     }
 
+    // Configure browser launch options based on runner type
+    const launchOptions = this.getBrowserLaunchOptions();
+
     // Launch browser
     switch (this.config.browser.toLowerCase()) {
       case 'firefox':
-        this.browser = await firefox.launch({ headless: true });
+        this.browser = await firefox.launch(launchOptions);
         break;
       case 'webkit':
-        this.browser = await webkit.launch({ headless: true });
+        this.browser = await webkit.launch(launchOptions);
         break;
       default:
-        this.browser = await chromium.launch({ headless: true });
+        this.browser = await chromium.launch(launchOptions);
     }
 
     this.page = await this.browser.newPage();
@@ -69,6 +74,27 @@ class MonkeyTester {
         core.warning(`HTTP error: ${response.status()} ${response.url()}`);
       }
     });
+  }
+
+  private getBrowserLaunchOptions() {
+    if (this.config.runnerType === 'github-hosted') {
+      // GitHub-hosted runners need different options for better compatibility
+      return {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--no-first-run',
+          '--disable-default-apps'
+        ]
+      };
+    } else {
+      // Self-hosted runners use default options
+      return { headless: true };
+    }
   }
 
   async navigateToUrl(): Promise<void> {
@@ -267,8 +293,32 @@ class MonkeyTester {
   }
 }
 
+function detectRunnerType(): 'self-hosted' | 'github-hosted' {
+  // Check for GitHub-hosted runner indicators
+  const runnerName = process.env.RUNNER_NAME || '';
+  const githubActions = process.env.GITHUB_ACTIONS === 'true';
+  const runnerEnvironment = process.env.RUNNER_ENVIRONMENT || '';
+  
+  // GitHub-hosted runners typically have specific patterns in RUNNER_NAME
+  // and don't have custom labels like 'self-hosted'
+  if (githubActions) {
+    if (runnerName.includes('GitHub Actions') || 
+        runnerName.includes('Hosted Agent') ||
+        runnerEnvironment === 'github-hosted' ||
+        (!runnerName.includes('self-hosted') && !runnerName.includes('custom'))) {
+      return 'github-hosted';
+    }
+  }
+  
+  return 'self-hosted';
+}
+
 async function run(): Promise<void> {
   try {
+    // Detect runner type
+    const runnerType = detectRunnerType();
+    core.info(`Detected runner type: ${runnerType}`);
+
     // Get inputs
     const config: TestConfig = {
       url: core.getInput('url', { required: true }),
@@ -277,7 +327,8 @@ async function run(): Promise<void> {
       mcpServer: core.getInput('mcp-server') || '',
       screenshotPath: core.getInput('screenshot-path') || './screenshots',
       maxActions: parseInt(core.getInput('max-actions') || '100'),
-      actionDelay: parseInt(core.getInput('action-delay') || '1000')
+      actionDelay: parseInt(core.getInput('action-delay') || '1000'),
+      runnerType: runnerType
     };
 
     core.info('Starting Playwright MCP Monkey Test...');
@@ -285,6 +336,7 @@ async function run(): Promise<void> {
     core.info(`Test Duration: ${config.testDuration} minutes`);
     core.info(`Browser: ${config.browser}`);
     core.info(`Max Actions: ${config.maxActions}`);
+    core.info(`Runner Type: ${config.runnerType}`);
 
     // Initialize and run monkey test
     const tester = new MonkeyTester(config);
