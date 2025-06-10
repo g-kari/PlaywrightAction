@@ -6,6 +6,31 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://playwright.dev'
+        type: string
+      test-duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '2'
+        type: string
+      browser:
+        description: 'Browser to use'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+      max-actions:
+        description: 'Maximum number of actions'
+        required: false
+        default: '30'
+        type: string
 
 jobs:
   monkey-test:
@@ -26,10 +51,10 @@ jobs:
       - name: Run Playwright Monkey Test
         uses: ./
         with:
-          url: 'https://playwright.dev'
-          test-duration: '2'
-          browser: 'chromium'
-          max-actions: '30'
+          url: ${{ github.event.inputs.url || 'https://playwright.dev' }}
+          test-duration: ${{ github.event.inputs.test-duration || '2' }}
+          browser: ${{ github.event.inputs.browser || 'chromium' }}
+          max-actions: ${{ github.event.inputs.max-actions || '30' }}
           action-delay: '2000'
           
       - name: Upload Screenshots

@@ -136,6 +136,65 @@ jobs:
           mcp-server: ${{ secrets.MCP_SERVER_URL }}
 ```
 
+### workflow_dispatchでの手動実行
+
+ワークフローを手動で実行する際、URLやその他のパラメータを実行時に指定できます：
+
+```yaml
+name: Manual Monkey Test
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://playwright.dev'
+        type: string
+      test-duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '3'
+        type: string
+      browser:
+        description: 'Browser to use'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+      max-actions:
+        description: 'Maximum number of actions'
+        required: false
+        default: '50'
+        type: string
+
+jobs:
+  monkey-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ github.event.inputs.browser || 'chromium' }}
+      
+      - name: Run Monkey Test
+        uses: g-kari/PlaywrightAction@v1
+        with:
+          url: ${{ github.event.inputs.url || 'https://playwright.dev' }}
+          test-duration: ${{ github.event.inputs.test-duration || '3' }}
+          browser: ${{ github.event.inputs.browser || 'chromium' }}
+          max-actions: ${{ github.event.inputs.max-actions || '50' }}
+```
+
+この設定により、GitHub Actionsの「Run workflow」ボタンから手動実行時に、テスト対象のURLやその他のパラメータを動的に指定できます。
+
 ## 入力パラメータ
 
 | パラメータ | 必須 | デフォルト値 | 説明 |

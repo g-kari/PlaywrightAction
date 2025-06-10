@@ -2,6 +2,22 @@ name: Multi-Platform Runner Test
 
 on:
   workflow_dispatch:
+    inputs:
+      url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://example.com'
+        type: string
+      test-duration:
+        description: 'Test duration in minutes'
+        required: false
+        default: '1'
+        type: string
+      max-actions:
+        description: 'Maximum number of actions'
+        required: false
+        default: '20'
+        type: string
   schedule:
     - cron: '0 12 * * *'  # Daily at noon
 
@@ -34,10 +50,10 @@ jobs:
       - name: Run Monkey Test - ${{ matrix.browser }} on ${{ matrix.os }}
         uses: ./
         with:
-          url: 'https://example.com'
-          test-duration: '1'
+          url: ${{ github.event.inputs.url || 'https://example.com' }}
+          test-duration: ${{ github.event.inputs.test-duration || '1' }}
           browser: ${{ matrix.browser }}
-          max-actions: '20'
+          max-actions: ${{ github.event.inputs.max-actions || '20' }}
           action-delay: '3000'
           screenshot-path: './screenshots/${{ matrix.os }}-${{ matrix.browser }}'
           
